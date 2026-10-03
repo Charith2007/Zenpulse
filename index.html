@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Digital Wellbeing & Focus Tracker - Real-time client-side screen-time, focus sessions, and burnout prevention dashboard." />
+  <title>ZenPulse | Digital Wellbeing & Focus Tracker</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/redesign.css" />
+  <!-- Google Fonts for modern typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        </div>
+        <h1 class="brand-title">ZenPulse</h1>
+      </div>
+      <nav class="header-actions" aria-label="Main">
+        <span id="backend-status-badge" class="status-note">Saved locally</span>
+        <a class="nav-link active" href="#top">Dashboard</a>
+        <button type="button" class="nav-link" onclick="document.getElementById('settings-modal').showModal()">Settings</button>
+        <div id="user-profile-chip" class="user-profile-chip" style="display: none;">
+          <div class="user-avatar" id="user-initials">SC</div>
+          <div class="user-details"><span class="user-name" id="user-display-name">Student</span></div>
+          <button id="btn-logout" class="btn-logout" title="Sign Out" aria-label="Sign Out" onclick="if(window.AuthManager) window.AuthManager.logout();">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          </button>
+        </div>
+        <button id="btn-open-auth" class="btn btn-primary btn-sm" onclick="if(window.AuthManager) window.AuthManager.showModal('login');">Sign In</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="zp-main" id="top">
+    <!-- HERO: Focus Timer -->
+    <section class="zp-card zp-hero" aria-labelledby="timer-heading">
+      <h2 id="timer-heading" class="sr-only">Focus Timer</h2>
+      <span id="timer-mode-badge" class="sr-only">Focus Mode</span>
+      <span class="timer-status-dot" aria-hidden="true"></span>
+      <div class="mode-tabs" role="tablist">
+        <button class="mode-tab active" data-mode="focus" role="tab" aria-selected="true">Focus</button>
+        <button class="mode-tab" data-mode="short-break" role="tab" aria-selected="false">Short Break</button>
+        <button class="mode-tab" data-mode="long-break" role="tab" aria-selected="false">Long Break</button>
+      </div>
+      <div class="timer-display-wrap">
+        <svg class="progress-ring" viewBox="0 0 230 230">
+          <circle class="progress-ring__circle-bg" stroke-width="10" fill="transparent" r="96" cx="115" cy="115" />
+          <circle id="timer-progress-ring" class="progress-ring__circle" stroke-width="10" stroke-linecap="round" fill="transparent" r="96" cx="115" cy="115" />
+        </svg>
+        <div class="timer-text-content">
+          <div id="timer-display" class="timer-time" aria-live="off">25:00</div>
+          <div id="timer-sublabel" class="timer-sublabel">Ready to Focus</div>
+        </div>
+      </div>
+      <div class="timer-controls">
+        <button id="btn-timer-start" class="btn btn-primary btn-lg">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Start
+        </button>
+        <button id="btn-timer-pause" class="btn btn-ghost" disabled>Pause</button>
+        <button id="btn-timer-reset" class="btn btn-ghost">Reset</button>
+      </div>
+      <p class="active-session-label" id="current-task-display">Current Subject: General Study</p>
+    </section>
+
+    <!-- Progress + Wellbeing -->
+    <div class="zp-row">
+      <section class="zp-card" aria-labelledby="progress-heading">
+        <h2 id="progress-heading" class="zp-title">Today's Progress</h2>
+        <div class="zp-big"><span id="metric-today-focus">0m</span></div>
+        <div class="zp-sub">of 4h goal</div>
+        <div class="zp-track"><div id="progress-fill" class="zp-fill"></div></div>
+        <dl class="zp-stats">
+          <div><dt>Focus / Break Ratio</dt><dd id="metric-ratio">0 : 1</dd></div>
+          <div><dt>Daily Goal</dt><dd id="metric-goal-pct">0%</dd></div>
+          <div><dt>Breaks</dt><dd id="metric-today-breaks">0m</dd></div>
+        </dl>
+      </section>
+
+      <section class="zp-card burnout-card" id="burnout-card" aria-labelledby="analytics-heading">
+        <h2 id="analytics-heading" class="zp-title">Wellbeing Status</h2>
+        <div class="zp-sub">Current Focus Load</div>
+        <div class="zp-score-row">
+          <span class="zp-big" id="burnout-score">10</span>
+          <span class="zp-sub">/ 100</span>
+          <span id="burnout-badge" class="burnout-badge badge-healthy">Healthy</span>
+        </div>
+        <div class="zp-track"><div id="burnout-fill" class="burnout-bar-fill fill-healthy" style="width: 10%;"></div></div>
+        <div class="burnout-advice" id="burnout-advice">Ready when you are. Start your first focus session today.</div>
+        <button id="empty-cta" type="button" class="btn btn-primary btn-sm" onclick="startFocusNow()">Start Focus</button>
+      </section>
+    </div>
+
+    <!-- Log + Recent Activity -->
+    <div class="zp-row">
+      <section class="zp-card" aria-labelledby="logger-heading">
+        <h2 id="logger-heading" class="zp-title">Log a Session</h2>
+        <form id="session-form" class="session-form" novalidate>
+          <div class="form-group">
+            <label for="session-subject">What did you work on?</label>
+            <input type="text" id="session-subject" name="subject" placeholder="Web Technologies" required />
+            <div class="error-msg" id="err-subject"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="session-type">Type</label>
+              <select id="session-type" name="type"><option value="focus">🎯 Focus</option><option value="break">☕ Break</option></select>
+            </div>
+            <div class="form-group flex-1">
+              <label for="session-duration">Duration (minutes)</label>
+              <input type="number" id="session-duration" name="duration" min="1" max="480" placeholder="45" required />
+              <div class="error-msg" id="err-duration"></div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="session-notes">Notes / Reflections (optional)</label>
+            <input type="text" id="session-notes" name="notes" placeholder="Prepared JSP lifecycle notes" />
+          </div>
+          <input type="hidden" id="session-date" name="date" />
+          <button type="submit" id="btn-submit-session" class="btn btn-primary btn-block">+ Log Session</button>
+        </form>
+      </section>
+
+      <section class="zp-card" aria-labelledby="history-heading">
+        <div class="zp-head">
+          <h2 id="history-heading" class="zp-title">Recent Activity</h2>
+          <select id="filter-history-type" class="select-sm" aria-label="Filter sessions">
+            <option value="all">All</option><option value="focus">Focus</option><option value="break">Breaks</option>
+          </select>
+        </div>
+        <div class="session-list-container"><ul id="session-list" class="session-list" aria-live="polite"></ul></div>
+      </section>
+    </div>
+
+    <!-- Trend -->
+    <section class="zp-card">
+      <div class="zp-head">
+        <h2 class="zp-title">7-Day Study &amp; Break Trend</h2>
+        <div class="chart-legend">
+          <span class="legend-item"><span class="legend-box legend-focus"></span> Focus</span>
+          <span class="legend-item"><span class="legend-box legend-break"></span> Break</span>
+        </div>
+      </div>
+      <div class="chart-svg-container" id="chart-container">
+        <svg id="trend-svg" width="100%" viewBox="0 0 420 180" preserveAspectRatio="xMidYMid meet" aria-label="7 day study time chart"></svg>
+        <div id="chart-tooltip" class="chart-tooltip" role="tooltip"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Settings -->
+  <dialog id="settings-modal" class="modal-dialog">
+    <div class="modal-content zp-settings">
+      <div class="zp-head"><h2 class="zp-title">Settings</h2><button type="button" class="btn-close-modal" aria-label="Close" onclick="this.closest('dialog').close()">✕</button></div>
+      <h3 class="zp-group">Timer</h3>
+      <div class="form-row">
+        <div class="form-group flex-1"><label for="custom-focus-mins">Focus (min)</label><input type="number" id="custom-focus-mins" min="1" max="180" value="25" /></div>
+        <div class="form-group flex-1"><label for="custom-break-mins">Short break (min)</label><input type="number" id="custom-break-mins" min="1" max="60" value="5" /></div>
+      </div>
+      <label class="toggle-control"><input type="checkbox" id="sound-toggle" checked /><span class="toggle-slider"></span><span class="toggle-label">Audio chimes</span></label>
+      <h3 class="zp-group">Appearance</h3>
+      <button id="theme-toggle" class="btn btn-secondary btn-sm" type="button" aria-label="Toggle Dark/Light Mode"><span class="theme-icon-sun">☀️</span><span class="theme-icon-moon">🌙</span> Toggle theme</button>
+      <h3 class="zp-group">Data Management</h3>
+      <div class="zp-actions">
+        <button id="btn-seed-data" class="btn btn-secondary btn-sm" type="button">Seed Demo Data</button>
+        <button id="btn-clear-data" class="btn btn-outline-danger btn-sm" type="button">Reset Data</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Automatic Break Reminder Modal -->
+  <dialog id="break-modal" class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-icon">🌿</div>
+      <h2 class="modal-title" id="modal-title">Time for a Well-Deserved Break!</h2>
+      <p class="modal-message" id="modal-msg">
+        Outstanding effort! You've just completed a solid focus session. Step away from the screen, stretch, hydrate, and give your eyes a rest.
+      </p>
+      <div class="modal-actions">
+        <button id="btn-modal-break" class="btn btn-primary">Start 5m Short Break</button>
+        <button id="btn-modal-dismiss" class="btn btn-secondary">Dismiss</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Authentication & Student Login Modal -->
+  <dialog id="auth-modal" class="modal-dialog auth-modal">
+    <div class="modal-content auth-modal-content">
+      <div class="auth-header">
+        <div class="brand-icon auth-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/>
+            <path d="M12 6v6l4 2"/>
+          </svg>
+        </div>
+        <h2 class="auth-title">Student Portal</h2>
+        <p class="auth-subtitle">Sign in to track your personal study metrics and burnout history.</p>
+        <button id="btn-close-auth" class="btn-close-modal" type="button" aria-label="Close dialog" onclick="if(window.AuthManager) window.AuthManager.closeModal();">✕</button>
+      </div>
+
+      <!-- Quick 1-Click Evaluation Access -->
+      <div class="demo-login-box">
+        <div class="demo-login-text">
+          <strong>⚡ Quick Evaluator Access</strong>
+          <span>Instant 1-click login with pre-seeded demo account:</span>
+        </div>
+        <button type="button" id="btn-demo-login" class="btn btn-primary btn-sm" onclick="if(window.AuthManager) window.AuthManager.fillDemoAccount();">
+          Use Demo Student
+        </button>
+      </div>
+
+      <!-- Tabs: Sign In / Create Account -->
+      <div class="auth-tabs" role="tablist">
+        <button id="tab-auth-login" class="auth-tab active" type="button" role="tab" onclick="if(window.AuthManager) window.AuthManager.showModal('login');">Sign In</button>
+        <button id="tab-auth-register" class="auth-tab" type="button" role="tab" onclick="if(window.AuthManager) window.AuthManager.showModal('register');">Create Account</button>
+      </div>
+
+      <!-- Sign In Form -->
+      <form id="form-login" class="auth-form" novalidate>
+        <div class="form-group">
+          <label for="login-email">Student Email</label>
+          <input type="email" id="login-email" placeholder="student@woxsen.edu.in" required />
+        </div>
+        <div class="form-group">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" placeholder="••••••••" required />
+        </div>
+        <div class="error-msg text-center" id="err-login-general"></div>
+        <button type="submit" class="btn btn-primary btn-block">Sign In to Dashboard</button>
+      </form>
+
+      <!-- Create Account Form -->
+      <form id="form-register" class="auth-form" style="display: none;" novalidate>
+        <div class="form-group">
+          <label for="reg-name">Full Name <span class="req">*</span></label>
+          <input type="text" id="reg-name" placeholder="Sai Charith" required />
+        </div>
+        <div class="form-group">
+          <label for="reg-email">University Email <span class="req">*</span></label>
+          <input type="email" id="reg-email" placeholder="student@woxsen.edu.in" required />
+        </div>
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="reg-password">Password <span class="req">*</span></label>
+            <input type="password" id="reg-password" placeholder="Min 6 chars" minlength="6" required />
+          </div>
+          <div class="form-group flex-1">
+            <label for="reg-dept">Department</label>
+            <input type="text" id="reg-dept" placeholder="CSE" value="Computer Science &amp; Engineering" />
+          </div>
+        </div>
+        <div class="error-msg text-center" id="err-register-general"></div>
+        <button type="submit" class="btn btn-primary btn-block">Create Student Account</button>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Modular Scripts -->
+  <script src="js/data.js"></script>
+  <script src="js/burnout.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/timer.js"></script>
+  <script src="js/logger.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
